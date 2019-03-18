@@ -148,17 +148,23 @@ const loginHTML = `
 		</div>
     <script>
 	function checkStatus() {
-	  $.getJSON('/status', function(data) {
-		  $("#login-form").hide();
-		  $("#logged-in").hide();
-		  if(data.Password) {
-			  $("#username-show").attr("value", data.Username);
-			  $("#login-form").hide();
-				$("#logged-in").show();
-				sign();
-			} else {
-				$("#login-form").show(); 
-			}
+		$("#login-form").hide();
+		$("#logged-in").hide();
+    $.get('/auth').success(function(d, t, jqXHR) {
+		  $("#username-show").attr("value", jqXHR.getResponseHeader("x-forwarded-user") + " (U2F)");
+			$("#logged-in").show();
+		  {{if .}}window.location.replace("{{.}}");{{end}}
+    }).fail(function() {
+			$.getJSON('/status', function(data) {
+				if(data.Password) {
+					$("#username-show").attr("value", data.Username);
+					$("#login-form").hide();
+					$("#logged-in").show();
+					sign();
+				} else {
+					$("#login-form").show(); 
+				}
+			});
 		});
 	}
 	$(document).ready(function(){
@@ -202,7 +208,7 @@ const loginHTML = `
       return;
     }
     $.post('/signResponse', JSON.stringify(resp)).success(function() {
-		  {{if .}}window.location.replace("{{.}}");{{end}}
+		  checkStatus();
     }).fail(serverError);
   }
   function sign() {

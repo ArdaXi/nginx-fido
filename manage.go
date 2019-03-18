@@ -2,7 +2,7 @@ package main
 
 import "net/http"
 
-const indexHTML = `
+const manageHTML = `
 <!DOCTYPE html>
 <html>
   <head>
@@ -100,6 +100,6 @@ const indexHTML = `
 </html>
 `
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(indexHTML))
+func manageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte(manageHTML))
 }

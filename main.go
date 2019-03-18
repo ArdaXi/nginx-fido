@@ -293,17 +293,6 @@ func checkAuth(db *bolt.DB, w http.ResponseWriter, r *http.Request, needU2F bool
 			http.Error(w, "ip not in session", http.StatusForbidden)
 			return "", nil, fmt.Errorf("Connecting from wrong IP")
 		}
-		valid := false
-		for _, reg := range registrations {
-			if subtle.ConstantTimeCompare(reg.data.KeyHandle, data.KeyHandle) == 1 {
-				valid = true
-				break
-			}
-		}
-		if !valid {
-			http.Error(w, "u2f keyhandle in session unknown", http.StatusForbidden)
-			return "", nil, fmt.Errorf("Keyhandle present in cookie is not in database")
-		}
 	}
 	return username, registrations, nil
 }
@@ -558,6 +547,20 @@ func logout(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Success"))
 }
 
+func auth(db *bolt.DB) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username, _, err := checkAuth(db, w, r, true)
+		if err != nil {
+			log.Printf("checkAuth err: %s", err)
+			return
+		}
+		w.Header().Set("X-Forwarded-User", username)
+		w.Write([]byte("Logged in as "))
+		w.Write([]byte(username))
+		return
+	}
+}
+
 func init() {
 	flag.BoolVar(&runAsServer, "server", false, "Run as server")
 }
@@ -611,9 +614,10 @@ func main() {
 	}
 	secureCookie = securecookie.New(hashKey, blockKey)
 
-	http.HandleFunc("/", indexHandler)
-	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/manage", manageHandler)
+	http.HandleFunc("/", loginHandler)
 	http.HandleFunc("/logout", logout)
+	http.HandleFunc("/auth", auth(db))
 	http.HandleFunc("/registerRequest", registerRequest(db))
 	http.HandleFunc("/registerResponse", registerResponse(db))
 	http.HandleFunc("/signRequest", signRequest(db))
